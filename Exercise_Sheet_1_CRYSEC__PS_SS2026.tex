@@ -196,7 +196,77 @@ Consider the following mode of operations for applying DSS (in violation of the 
 Assume that you have obtained - at least two - signatures that have been produced as described above. Show that in this case it is possible to perform an attack leading to universal forgery capabilities for the attacker by recovering the secret key $x$.
 \end{exercisebox}
 
-\paragraph{Answer:} \yoursolutionhere{}
+\paragraph{Answer:} {
+
+For DSS, the signature is computed as
+
+\[
+s \equiv k^{-1}(H(m)+xr) \pmod q.
+\]
+
+Assume that two different messages $m_1$ and $m_2$ are signed using the same nonce $k$ and therefore the same value $r$.
+
+Then the signatures satisfy
+
+\[
+s_1 \equiv k^{-1}(H(m_1)+xr) \pmod q
+\]
+
+and
+
+\[
+s_2 \equiv k^{-1}(H(m_2)+xr) \pmod q.
+\]
+
+Subtracting the two equations yields
+
+\[
+s_1-s_2
+\equiv
+k^{-1}(H(m_1)-H(m_2))
+\pmod q.
+\]
+
+Thus,
+
+\[
+k
+\equiv
+(H(m_1)-H(m_2))
+(s_1-s_2)^{-1}
+\pmod q.
+\]
+
+After recovering $k$, we substitute it into the signature equation:
+
+\[
+s_1k
+\equiv
+H(m_1)+xr
+\pmod q.
+\]
+
+Hence,
+
+\[
+xr
+\equiv
+s_1k-H(m_1)
+\pmod q,
+\]
+
+and therefore
+
+\[
+x
+\equiv
+(s_1k-H(m_1))r^{-1}
+\pmod q.
+\]
+
+Consequently, the attacker can recover the secret key $x$ from two signatures generated with the same nonce $k$.
+
+Once $x$ is known, the attacker can generate valid signatures for arbitrary messages and therefore obtains \emph{universal forgery} capabilities.}
 
 \stepcounter{qid}
 \renewcommand{\exerciseprefix}{PS-\blockid{}-E\theexercise: \exname{}-Q\theqid}
@@ -205,7 +275,43 @@ Assume that you have obtained - at least two - signatures that have been produce
 In the context of the previous question, argue why the adversary has obtained universal forgery capabilities for signatures. List the concrete steps using an example. 
 \end{exercisebox}
 
-\paragraph{Answer:} \yoursolutionhere{}
+\paragraph{Answer:} {The attacker obtains \emph{universal forgery} capabilities because the attack described in Question~1 reveals the private signing key $x$.
+
+The attack proceeds as follows:
+
+\begin{enumerate}
+\item Obtain two signatures
+\[
+(m_1,r,s_1)
+\]
+and
+\[
+(m_2,r,s_2).
+\]
+
+\item Since the same nonce $k$ was reused, the value $r$ is identical in both signatures.
+
+\item Recover $k$ using
+\[
+k
+\equiv
+(H(m_1)-H(m_2))
+(s_1-s_2)^{-1}
+\pmod q.
+\]
+
+\item Recover the secret key
+\[
+x
+\equiv
+(s_1k-H(m_1))r^{-1}
+\pmod q.
+\]
+
+\item Choose any new message $m_3$ and generate a valid DSS signature using the recovered private key $x$.
+\end{enumerate}
+
+Since signatures can now be generated for arbitrary messages, the attacker has achieved \emph{universal forgery}.}
 
 \stepcounter{qid}
 \renewcommand{\exerciseprefix}{PS-\blockid{}-E\theexercise: \exname{}-Q\theqid}
@@ -229,7 +335,105 @@ Show how to use the \textbf{factor} command of sage to break this system and gen
 Demonstrate the forged signature using CrypTool 1: Menu Digital Signatures/PKI \faLongArrowRight Signature Demonstration (Signature Generation) $\ldots$
 \end{exercisebox}
 
-\paragraph{Answer:} \yoursolutionhere{}
+\paragraph{Answer:} 
+
+Given the public key
+
+\[
+n = 2^{137}-1
+\]
+
+and
+
+\[
+e = 17,
+\]
+
+we first factor the modulus using Sage:
+
+\begin{verbatim}
+factor(n)
+\end{verbatim}
+
+which yields
+
+\[
+n =
+5439042183600204290159
+\cdot
+32032215596496435569.
+\]
+
+Therefore,
+
+\[
+p = 5439042183600204290159
+\]
+
+and
+
+\[
+q = 32032215596496435569.
+\]
+
+Next, we compute Euler's totient:
+
+\[
+\varphi(n)=(p-1)(q-1).
+\]
+
+The private exponent is
+
+\[
+d=e^{-1}\pmod{\varphi(n)}.
+\]
+
+Using Sage:
+
+\begin{verbatim}
+phi = (p - 1)*(q - 1)
+d = inverse_mod(e, phi)
+\end{verbatim}
+
+we obtain
+
+\[
+\varphi(n)=174224571863520493287776724605868623539744.
+\]
+
+\[
+d =
+40994016909063645479476876377851440832881.
+\]
+
+For the message
+
+\begin{verbatim}
+250 dollars
+\end{verbatim}
+
+we compute
+
+\begin{verbatim}
+m = str2num("250 dollars")
+sig = power_mod(m, d, n)
+\end{verbatim}
+
+\[
+m =
+139566616181646573880489266.
+\]
+
+The forged RSA signature is
+
+\[
+\boxed{
+125370169660687702452878304929998178247783
+}.
+\]
+
+This signature can be successfully verified using the public key
+\((n,e)\) in CrypTool 1.
 
 
 
@@ -239,6 +443,88 @@ Demonstrate the forged signature using CrypTool 1: Menu Digital Signatures/PKI \
 \begin{exercisebox}{0.5}
 In the context of the previous question, argue why the adversary has obtained partial or universal forgery capabilities for signatures. List the concrete steps using an example. 
 \end{exercisebox}
+\paragraph{Answer:} {
+
+In Question~3, the attacker factors the RSA modulus
+
+\[
+n = pq,
+\]
+
+which allows the computation of
+
+\[
+\varphi(n)
+=
+(p-1)(q-1)
+\]
+
+and subsequently the private exponent
+
+\[
+d
+=
+e^{-1}
+\pmod{\varphi(n)}.
+\]
+
+Once the attacker knows $d$, signatures can be generated for arbitrary messages.
+
+The RSA signing operation is
+
+\[
+\sigma
+=
+m^d
+\pmod n.
+\]
+
+Verification is performed by checking
+
+\[
+\sigma^e
+\equiv
+m
+\pmod n.
+\]
+
+For example, for the message
+
+\begin{verbatim}
+250 dollars
+\end{verbatim}
+
+the attacker computes
+
+\[
+m = \texttt{str2num("250 dollars")}
+\]
+
+and then
+
+\[
+\sigma = m^d \pmod n.
+\]
+
+The resulting signature is
+
+\[
+\sigma
+=
+125370169660687702452878304929998178247783.
+\]
+
+Since the attacker possesses the private signing key and can generate valid signatures for any chosen message, the attack results in
+
+\[
+\boxed{\text{Universal Forgery}}
+\]
+
+rather than merely
+
+\[
+\boxed{\text{Partial Forgery}}.
+\]}
 
 \pagebreak
 \stepcounter{exercise}
