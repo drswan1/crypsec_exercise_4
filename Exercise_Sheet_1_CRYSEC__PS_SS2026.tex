@@ -139,10 +139,36 @@ Next, you observe that Alice sends Bob the number $a = 36$ and Bob sends $b = 31
 \end{enumerate}
 \end{exercisebox}
 
-\paragraph{Answer:} \yoursolutionhere{}
+\paragraph{Answer:}
 
+The formula for modular exponentiation is used to calculate the public and private keys in the DHKE process:
+$$g^x \pmod{p} = K$$
 
+Since we know the prime ($p = 37$) and the generator ($g = 6$), and we also observed the public keys $A = 36$ (Alice) and $B = 31$ (Bob), we can deduce the shared secret key. 
 
+We can brute-force the calculation of Alice's private key ($x$) by trying successive exponents until the result matches her public key:
+$$6^x \equiv 36 \pmod{37}$$
+
+\begin{itemize}
+    \item $6^1 \equiv 6 \pmod{37}$
+    \item $6^2 \equiv 36 \pmod{37}$
+\end{itemize}
+
+This reveals that Alice's private key is $x = 2$. Now that we have her secret exponent, we can use Bob's public key ($B = 31$) to calculate the shared secret key ($K$):
+$$K = B^x \pmod{p}$$
+$$K = 31^2 \pmod{37} = 961 \pmod{37} \equiv 36 \pmod{37}$$
+
+The key on which they agreed is \textbf{36}.
+
+The reason the private key could be recovered so easily is twofold:
+\begin{itemize}
+    \item The prime modulus ($p = 37$) is trivially small, allowing for a rapid brute-force attack.
+    \item The generator ($g = 6$) is not a primitive root modulo 37, meaning it produces a very small subgroup of distinct remainders (only 4 possible keys).
+\end{itemize}
+
+From Alice's and Bob's viewpoint, a better choice for $g$ would be \textbf{2}. 
+
+They should choose a primitive root modulo 37. A primitive root is a number that, when raised to successive powers, generates every number from $1$ to $p-1$ before repeating. This maximizes the search space for an attacker.
 \stepcounter{qid}
 \renewcommand{\exerciseprefix}{PS-\blockid{}-E\theexercise: \exname{}-Q\theqid}
 \renewcommand{\questiontitle}{\exerciseprefix{}: Practical computing with DHKE}
@@ -155,8 +181,16 @@ In the Diffie-Hellman key exchange, $g$ is chosen so that $2 \le g \le p - 2$. G
 are good or bad choices, respectively?
 \end{exercisebox}
 
-\paragraph{Answer:} \yoursolutionhere{}
+\paragraph{Answer:}
 
+Both given values are terrible choices for the base generator. Using the parameters from the previous task ($p = 37$) as an example:
+
+\begin{itemize}
+    \item \textbf{For $g = p - 1$ (e.g., 36):} Since $p - 1 \equiv -1 \pmod{p}$, the remainders will only ever alternate between $1$ and $p - 1$ (e.g., 1 and 36). 
+    \item \textbf{For $g = p + 1$ (e.g., 38):} Since $p + 1 \equiv 1 \pmod{p}$, the remainder will always be $1$, regardless of the exponent used.
+\end{itemize}
+
+More abstractly, these choices result in a subgroup of size 2 or 1, respectively. This makes the exchange incredibly easy to crack because the "search space" for the secret key is reduced to just one or two trivial possibilities, completely bypassing the security of the Discrete Logarithm Problem.
 
 \stepcounter{qid}
 \renewcommand{\exerciseprefix}{PS-\blockid{}-E\theexercise: \exname{}-Q\theqid}
@@ -165,9 +199,59 @@ are good or bad choices, respectively?
 Digital signatures can be used to prevent a man-in-the-middle attack on Diffie-Hellman. Suppose that Alice and Bob already share a symmetric key $K$ before they begin the Diffie-Hellman procedure. Draw a diagram to illustrate a simple method Alice and Bob can use to prevent a man-in-the-middle attack.
 \end{exercisebox}
 
-\paragraph{Answer:} \yoursolutionhere{}
+\paragraph{Answer:} 
 
+\paragraph{Answer:}
 
+To prevent a Man-in-the-Middle (MitM) attack without relying on a pre-shared symmetric key, Alice and Bob can use digital signatures (such as the Digital Signature Algorithm, DSA). In this scenario, we assume Alice and Bob each have a private/public key pair for signing and know each other's public keys.
+
+Below is a diagram illustrating the Diffie-Hellman protocol authenticated via DSA:
+
+\vspace{0.5cm}
+\begin{center}
+% Added scale=0.8 and transform shape to shrink the diagram by 1/5th
+\begin{tikzpicture}[scale=0.8, transform shape, node distance=2cm, auto]
+    % Nodes
+    \node (Alice) [font=\bfseries] {Alice (DSA keys: $prv_A, pub_A$)};
+    \node (Bob) [right of=Alice, node distance=9.5cm, font=\bfseries] {Bob (DSA keys: $prv_B, pub_B$)};
+    
+    % Vertical lines
+    \draw[thick] (Alice.south) -- ++(0,-6.5cm) coordinate (A_end);
+    \draw[thick] (Bob.south) -- ++(0,-6.5cm) coordinate (B_end);
+    
+    % Alice's computations (Aligned right to stay left of the line)
+    \node[anchor=east] at ([yshift=-0.5cm, xshift=-0.2cm]Alice.south) {1. Choose DH private $a$};
+    \node[anchor=east] at ([yshift=-1cm, xshift=-0.2cm]Alice.south) {2. Compute $A = g^a \pmod p$};
+    \node[anchor=east] at ([yshift=-1.5cm, xshift=-0.2cm]Alice.south) {3. Sign $A$: $Sig_A = \text{Sign}_{prv_A}(A)$};
+    
+    % Message 1
+    \draw[->, thick] ([yshift=-2.2cm]Alice.south) -- ([yshift=-2.2cm]Bob.south) node[midway, above] {Message 1: $A, Sig_A$};
+    
+    % Bob's computations (Aligned left to stay right of the line)
+    \node[anchor=west] at ([yshift=-2.7cm, xshift=0.2cm]Bob.south) {4. Verify $Sig_A$ using $pub_A$};
+    \node[anchor=west] at ([yshift=-3.2cm, xshift=0.2cm]Bob.south) {5. Choose DH private $b$};
+    \node[anchor=west] at ([yshift=-3.7cm, xshift=0.2cm]Bob.south) {6. Compute $B = g^b \pmod p$};
+    \node[anchor=west] at ([yshift=-4.2cm, xshift=0.2cm]Bob.south) {7. Sign $B$: $Sig_B = \text{Sign}_{prv_B}(B)$};
+    
+    % Message 2
+    \draw[<-, thick] ([yshift=-4.9cm]Alice.south) -- ([yshift=-4.9cm]Bob.south) node[midway, above] {Message 2: $B, Sig_B$};
+    
+    % Alice verification
+    \node[anchor=east] at ([yshift=-5.4cm, xshift=-0.2cm]Alice.south) {8. Verify $Sig_B$ using $pub_B$};
+    
+    % Shared secret calculations (Anchored nicely below the lines)
+    \node[anchor=north, yshift=-0.2cm] at (A_end) {$K_{DH} = B^a \pmod p$};
+    \node[anchor=north, yshift=-0.2cm] at (B_end) {$K_{DH} = A^b \pmod p$};
+
+\end{tikzpicture}
+\end{center}
+\vspace{0.5cm}
+
+\textbf{Why this prevents a MitM attack:}
+
+In this setup, authentication relies on asymmetric cryptography rather than a shared secret. When Alice sends her public DH value $A$, she signs it with her DSA private key ($prv_A$). 
+
+If an attacker (Mallory) intercepts the communication and tries to substitute her own DH value $M$, she must provide a valid signature for $M$ that Bob will verify using Alice's public key ($pub_A$). Because Mallory does not possess Alice's private key, she cannot forge a valid signature. Bob will detect the invalid signature at Step 4, realizing the message did not come from Alice, and will abort the protocol before any compromised key is established.
 
 \pagebreak
 \stepcounter{exercise}
