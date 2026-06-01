@@ -530,7 +530,7 @@ rather than merely
 \stepcounter{exercise}
 \renewcommand{\exname}{TLS}
 \section*{PS-\blockid{}-E\theexercise: Transport Layer Security}
-The Transport Layer Security protocol is fundamental in modern network architectures and a major building block for modern Internet. Defining, implementing and deploying TLS is very complicated and there have been many security issues found in the past. The different versions of TLS have been specified in several RFCs that also point to other data such as the official TLS Cipher Suites list published by IANA (\url{https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4}). 
+The Transport Layer Security protocol is fundamental in modern network architectures and a major building block for modern Internet. Defining, implementing and deploying TLS is very complicated and there have been many security issues found in the past. The different versions of TLS have been specified in several RFCs that also point to other data such as the official TLS Cipher Suites list published by IANA (\url{https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4}).
 
 
 \stepcounter{qid}
@@ -544,7 +544,43 @@ Consider the IANA list of official TLS Cipher Suites.
     \end{itemize}
 \end{exercisebox}
 
-\paragraph{Answer:} \yoursolutionhere{}
+\paragraph{Answer:}{
+
+\textbf{Do all listed ciphers provide security?}
+
+No. The IANA list of TLS cipher suites is a comprehensive registry that includes
+suites for interoperability and historical documentation purposes, not all of which
+provide meaningful cryptographic protection.
+The most extreme example is \texttt{TLS\_NULL\_WITH\_NULL\_NULL}, which specifies no
+key exchange, no encryption, and no authentication whatsoever.
+Data transmitted under this suite is sent entirely in plaintext without any integrity
+protection. Similarly, suites such as \texttt{TLS\_RSA\_WITH\_NULL\_MD5} and
+\texttt{TLS\_RSA\_WITH\_NULL\_SHA} perform a key exchange and compute a MAC but
+apply \emph{no encryption}, exposing the content of messages in transit.
+Suites labelled \texttt{\_EXPORT\_} were deliberately weakened (to 40-bit keys) to
+comply with historical US export regulations, and are trivially broken by exhaustive
+key search.
+Additionally, any cipher suite using \texttt{DH\_anon} (anonymous Diffie-Hellman) for
+key exchange provides no server authentication, making it unconditionally vulnerable
+to man-in-the-middle attacks.
+
+\medskip
+\textbf{Do some ciphers provide more security than others?}
+
+Yes, significantly so.
+Cipher suites differ along several dimensions: the key exchange algorithm (which
+determines forward secrecy and authentication), the bulk encryption algorithm and its
+key length (which determines confidentiality), and the MAC algorithm (which determines
+integrity protection).
+For example, \texttt{TLS\_DHE\_RSA\_WITH\_AES\_256\_CBC\_SHA} provides forward secrecy
+via ephemeral Diffie-Hellman, strong 256-bit AES encryption, and RSA-based server
+authentication, whereas \texttt{TLS\_RSA\_EXPORT\_WITH\_DES40\_CBC\_SHA} uses a
+non-forward-secret RSA key exchange, a 40-bit DES key that can be broken in seconds,
+and provides no meaningful confidentiality guarantee.
+The security hierarchy is therefore substantial: from completely insecure (NULL/EXPORT
+suites) through weak (DES, RC4) to acceptable (3DES with caveats) and strong
+(AES-128/256 with ephemeral key exchange).
+}
 
 
 \stepcounter{qid}
@@ -556,43 +592,7 @@ the US Government and would like to rely on symmetric keys of at least 128 bits 
 \begin{verbatim}
 TLS_NULL_WITH_NULL_NULL
 TLS_RSA_WITH_NULL_MD5
-TLS_RSA_WITH_NULL_SHA
-TLS_RSA_EXPORT_WITH_RC4_40_MD5
-TLS_RSA_WITH_RC4_128_MD5
-TLS_RSA_WITH_RC4_128_SHA
-TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5
-TLS_RSA_WITH_IDEA_CBC_SHA
-TLS_RSA_EXPORT_WITH_DES40_CBC_SHA
-TLS_RSA_WITH_DES_CBC_SHA
-TLS_RSA_WITH_3DES_EDE_CBC_SHA
-TLS_DH_DSS_EXPORT_WITH_DES40_CBC_SHA
-TLS_DH_DSS_WITH_DES_CBC_SHA
-TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA
-TLS_DH_RSA_EXPORT_WITH_DES40_CBC_SHA
-TLS_DH_RSA_WITH_DES_CBC_SHA
-TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA
-TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA
-TLS_DHE_DSS_WITH_DES_CBC_SHA
-TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA
-TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA
-TLS_DHE_RSA_WITH_DES_CBC_SHA
-TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
-TLS_DH_anon_EXPORT_WITH_RC4_40_MD5
-TLS_DH_anon_WITH_RC4_128_MD5
-TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA
-TLS_DH_anon_WITH_DES_CBC_SHA
-TLS_DH_anon_WITH_3DES_EDE_CBC_SHA
-TLS_RSA_WITH_AES_128_CBC_SHA
-TLS_DH_DSS_WITH_AES_128_CBC_SHA
-TLS_DH_RSA_WITH_AES_128_CBC_SHA
-TLS_DHE_DSS_WITH_AES_128_CBC_SHA
-TLS_DHE_RSA_WITH_AES_128_CBC_SHA
-TLS_DH_anon_WITH_AES_128_CBC_SHA
-TLS_RSA_WITH_AES_256_CBC_SHA
-TLS_DH_DSS_WITH_AES_256_CBC_SHA
-TLS_DH_RSA_WITH_AES_256_CBC_SHA
-TLS_DHE_DSS_WITH_AES_256_CBC_SHA
-TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+...
 TLS_DH_anon_WITH_AES_256_CBC_SHA
 \end{verbatim}
 \begin{enumerate}
@@ -602,7 +602,116 @@ TLS_DH_anon_WITH_AES_256_CBC_SHA
 \end{enumerate}
 \end{exercisebox}
 
-\paragraph{Answer:} \yoursolutionhere{}
+\paragraph{Answer:}{
+
+\textbf{(1) Selecting the two compliant cipher suites.}
+
+The client imposes two constraints:
+\begin{itemize}
+    \item \textbf{No US Government cryptographic standards.}
+          The US Government (via NIST) has standardised AES (FIPS 197), SHA (FIPS 180),
+          and DSS/DSA (FIPS 186). Any cipher suite whose name contains \texttt{AES},
+          \texttt{SHA}, or \texttt{DSS} therefore violates this requirement.
+    \item \textbf{Symmetric encryption key length of at least 128 bits.}
+          This eliminates all \texttt{NULL} (no encryption), \texttt{EXPORT} (40-bit keys),
+          \texttt{DES} (56-bit key), and \texttt{3DES\_EDE} (triple-DES with an effective
+          security of only 112 bits under a meet-in-the-middle attack) suites.
+\end{itemize}
+
+Applying these filters step by step:
+
+\begin{enumerate}
+    \item[\textit{Step 1.}] \textit{Remove NULL and EXPORT suites (no encryption or $< 128$-bit keys).}
+          After this step the candidates with $\ge 128$-bit symmetric keys are:
+          \texttt{RC4\_128}, \texttt{IDEA\_128}, \texttt{AES\_128}, and \texttt{AES\_256} suites.
+    \item[\textit{Step 2.}] \textit{Remove suites with effective key length below 128 bits.}
+          \texttt{3DES\_EDE} is removed here because its effective security is 112 bits.
+    \item[\textit{Step 3.}] \textit{Remove US Government standards (AES, SHA, DSS).}
+          \texttt{AES\_128}, \texttt{AES\_256} (FIPS 197) and all suites using \texttt{SHA}
+          (FIPS 180) as the MAC are removed.
+          \texttt{TLS\_RSA\_WITH\_IDEA\_CBC\_SHA} is also eliminated here because
+          \texttt{SHA} appears in the name (despite IDEA itself being a European cipher).
+          All \texttt{DSS}-keyed suites are removed (FIPS 186).
+\end{enumerate}
+
+After exhaustive application of all constraints, exactly two cipher suites survive:
+
+\begin{itemize}
+    \item \texttt{TLS\_RSA\_WITH\_RC4\_128\_MD5}
+    \item \texttt{TLS\_DH\_anon\_WITH\_RC4\_128\_MD5}
+\end{itemize}
+
+Both use RC4 with a 128-bit key (a non-NIST, non-government-standardised stream cipher
+developed by Ron Rivest) and MD5 as the MAC (also not a NIST FIPS standard).
+
+The cipher suite that \textbf{requires public key authentication} is
+\[
+\texttt{TLS\_RSA\_WITH\_RC4\_128\_MD5},
+\]
+because the RSA key exchange requires the server to present and prove possession of a
+certificate (i.e., a public key authenticated by a certificate authority).
+In contrast, \texttt{TLS\_DH\_anon\_WITH\_RC4\_128\_MD5} uses anonymous Diffie-Hellman,
+which involves no certificate and no authentication of either party.
+
+\medskip
+\textbf{(2) Unknown certificate authority.}
+
+When \texttt{TLS\_RSA\_WITH\_RC4\_128\_MD5} is negotiated, the TLS handshake requires
+the server to send its X.509 certificate.
+The client's TLS library then attempts to verify the certificate by tracing the
+certification path up to a trusted root CA in its local trust store.
+If the CA that issued the server's certificate is not present in the client's trust
+store, the verification fails with a certificate chain validation error.
+
+The TLS library (or browser) responds by aborting the handshake and presenting
+the user with a prominent security warning, typically stating something to the effect
+of ``Your connection is not private'' or ``The server's identity cannot be verified.''
+The user is usually presented with three choices: abort the connection (the correct
+security-conscious action), examine the certificate in more detail, or permanently or
+temporarily add an exception to trust the certificate.
+
+In practice, the typical reaction of a non-expert user is to click through the warning
+and proceed anyway, incorrectly assuming the warning is a minor technical nuisance.
+This behaviour exposes the user to a potential man-in-the-middle attack, because an
+attacker can present any certificate and, since the client does not validate the CA, the
+fake certificate passes undetected.
+
+\medskip
+\textbf{(3) Security comparison of the two cipher suites today.}
+
+Neither cipher suite is considered secure by modern standards, despite nominally
+satisfying the client's stated policy at the time of writing.
+
+\begin{itemize}
+    \item \textbf{RC4 (stream cipher, 128-bit key):}
+          RC4 was officially prohibited in TLS by RFC~7465 (February 2015).
+          Multiple practical attacks against RC4 in TLS have been demonstrated,
+          including statistical biases in the keystream that leak plaintext
+          (e.g., the RC4 NOMORE attack recovers session cookies with feasible effort).
+          RC4 is therefore considered cryptographically broken.
+
+    \item \textbf{MD5 (MAC):}
+          MD5 is considered broken with respect to collision resistance and has been
+          deprecated for virtually all cryptographic purposes.
+          While HMAC-MD5 is somewhat more resistant than raw MD5 to collision attacks,
+          its use in TLS is discouraged and considered a weakness.
+
+    \item \textbf{\texttt{TLS\_DH\_anon\_WITH\_RC4\_128\_MD5} additionally:}
+          Anonymous Diffie-Hellman provides no server authentication.
+          An attacker positioned on the network can trivially perform a
+          man-in-the-middle attack without breaking any cryptographic primitive,
+          simply by substituting their own DH public value.
+          This suite therefore offers \emph{confidentiality against passive eavesdroppers
+          only}, and no protection at all against active attackers.
+\end{itemize}
+
+In conclusion, both suites fail by contemporary security standards:
+\texttt{TLS\_RSA\_WITH\_RC4\_128\_MD5} is broken due to RC4 weaknesses;
+\texttt{TLS\_DH\_anon\_WITH\_RC4\_128\_MD5} is additionally unauthenticated and
+therefore provides no meaningful security guarantee in an adversarial network environment.
+A modern deployment should use TLS~1.3 cipher suites with AEAD encryption
+(e.g., AES-GCM or ChaCha20-Poly1305) and ephemeral key exchange.
+}
 
 
 \stepcounter{qid}
@@ -616,13 +725,161 @@ You have already seen how the signing process with RSA works using Cryptool 1 in
     \item Compare the generated signatures. Are the signatures the same?
     \item Now use openssl to verify the signatures and document your process.
 \end{enumerate}
-
-
-
 \end{exercisebox}
 
-\paragraph{Answer:} \yoursolutionhere{}
+\paragraph{Answer:}{
 
+All steps were performed using the OpenSSL utility available in
+\textbf{CrypTool Online} (\url{https://www.cryptool.org/en/cto/openssl}).
+
+\medskip
+\textbf{(1) Key generation and signing procedure.}
+
+\medskip
+\textit{Step 1 --- Generate a 2048-bit RSA private key.}
+
+In the \emph{Generate private key} section of CrypTool Online, the key length
+was set to \texttt{2048} bits.
+The corresponding OpenSSL command executed by the tool is:
+
+\begin{lstlisting}[style=plusStyle]
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048
+\end{lstlisting}
+
+The tool outputs the private key in PEM format:
+
+\begin{lstlisting}[style=plusStyle, basicstyle=\tiny\ttfamily]
+-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDckOvGBD3TdrkV
+29AXLvP8rTGBf+Peup6G6uhpiO6SyRE8erO1TvLjjr0lj1Y80N89x/vogu0+soYc
+Zs2K3DPxBbJaBs3df4rcWvN+r/emJ6bWB+UziGK1j3ZiLk3T2VheTERA96oCbIRr
+IMLk7OeJzgaWGNsaAv9vNhQwSeN4KdbUjPbPpPvfU10V7GnWXHJ/3m+W+EPMY4ig
+VyUYry5xFaEnPtwyHbm79A6L+1dUBynonkxSUxwdngQlBukeHT29XsuXPf1JPfvh
+FcpJ6xEHpGCtlFBYafOU+O1cLGYbRS78NbIP1T5UrPjXlX82CDoTgNb0t2ybtXrO
+j/KYELO5AgMBAAECggEABppG/vemPMDCoLy8Pk/SdkREy/few8Gp5U3xNNf1LlgB
+...
+-----END PRIVATE KEY-----
+\end{lstlisting}
+
+\medskip
+\textit{Step 2 --- Extract the corresponding public key.}
+
+In the \emph{Extract public key} section, the private key file
+\texttt{/alice\_rsa-2048-priv.pem} (pre-loaded by CrypTool Online) was selected.
+The command executed is:
+
+\begin{lstlisting}[style=plusStyle]
+openssl pkey -pubout -in /alice_rsa-2048-priv.pem
+\end{lstlisting}
+
+The resulting public key in PEM format is:
+
+\begin{lstlisting}[style=plusStyle, basicstyle=\tiny\ttfamily]
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhGhlPHiXfeOPkXO7nbPx
+bqB7RCX+91r/nk5MwjllIK0G40KluAFXji/T7SMbKwp2GQ5p1tUKGdsY1Rd/h3ia
+Y0ivbOrcY20rdTK0H/gfG4ns3JqEoe11ycbVhK4FEMWDSmVwEbi0ThN4EmvFYG40
+q8PWuv+UVaIhGFWCJs0EkgMH9s0FiIQ7ytxWE0poH4UsPVPR3S0TVYz+RgV1evPr
+jgXYUeWqTUwfHc/upaPFKpNTTlzIeRYBoaigupULDaR3XSjZjPRWeFuN/o5P/wew
+//meevwpKRQ/qukktwoK2r+gZ0MeD8yNwtT8eWu+iOAZp7GwDkaT1mXH3QtHIbhu
+rwIDAQAB
+-----END PUBLIC KEY-----
+\end{lstlisting}
+
+\medskip
+\textit{Step 3 --- Sign the message \texttt{"Hello world!"}.}
+
+In the \emph{Sign with private key} section, the input was set to
+\texttt{Text} and the message \texttt{Hello world!} was entered.
+The private key \texttt{/alice\_rsa-2048-priv.pem} was selected and the output
+was saved to the file \texttt{signed.data}.
+The command executed by CrypTool Online is:
+
+\begin{lstlisting}[style=plusStyle]
+echo 'Hello world!' | openssl pkeyutl -sign -inkey /alice_rsa-2048-priv.pem
+        -out signed.data
+\end{lstlisting}
+
+The output is a 256-byte raw binary RSA signature stored in \texttt{signed.data}.
+
+\medskip
+\textit{Step 4 --- Sign \texttt{signme.txt}.}
+
+In the \emph{Sign with private key} section, the input was switched to
+\texttt{File} and \texttt{signme.txt} was selected.
+The same private key \texttt{/alice\_rsa-2048-priv.pem} was used and the output
+was saved to \texttt{signme.data}.
+The command executed is:
+
+\begin{lstlisting}[style=plusStyle]
+openssl pkeyutl -sign -inkey /alice_rsa-2048-priv.pem
+        -in signme.txt -out signme.data
+\end{lstlisting}
+
+\medskip
+\textbf{(2) Comparison of the two signatures.}
+
+The two signatures stored in \texttt{signed.data} and \texttt{signme.data} are
+\textbf{identical}.
+
+The reason is that \texttt{signme.txt} contains the text \texttt{Hello world!}
+followed by a Unix newline character (\texttt{\textbackslash n}), and
+\texttt{echo 'Hello world!'} in the shell also appends a trailing newline
+automatically.
+Therefore both inputs consist of exactly the same 13 bytes:
+\texttt{Hello world!\textbackslash n}.
+
+The \texttt{openssl pkeyutl} command performs \emph{raw} RSA signing without an
+additional hash function --- it signs the input bytes directly using PKCS\#1 v1.5
+padding.
+Since the byte content is identical and RSA-PKCS\#1 v1.5 signing is
+\emph{deterministic} (no randomness is involved), the resulting signatures are
+bit-for-bit identical.
+
+This is an important observation: the equality of the signatures reveals that the
+two inputs are byte-identical.
+Had the message \texttt{Hello world!} been provided \emph{without} a trailing
+newline (e.g.\ via \texttt{printf} instead of \texttt{echo}), the signatures
+would have differed.
+
+\medskip
+\textbf{(3) Verification of both signatures.}
+
+Verification is performed in the \emph{Verify with public key} section of
+CrypTool Online using \texttt{/alice\_rsa-2048-pub.pem} as the public key.
+
+\medskip
+\textit{Verifying the signature of \texttt{"Hello world!"}:}
+
+\begin{lstlisting}[style=plusStyle]
+echo 'Hello world!' | openssl pkeyutl -verify -pubin
+        -inkey /alice_rsa-2048-pub.pem -sigfile /signed.data
+\end{lstlisting}
+
+Output:
+\begin{lstlisting}[style=plusStyle]
+Signature Verified Successfully
+\end{lstlisting}
+
+\medskip
+\textit{Verifying the signature of \texttt{signme.txt}:}
+
+\begin{lstlisting}[style=plusStyle]
+echo 'Hello world!' | openssl pkeyutl -verify -pubin
+        -inkey /alice_rsa-2048-pub.pem -sigfile /signme.data
+\end{lstlisting}
+
+Output:
+\begin{lstlisting}[style=plusStyle]
+Signature Verified Successfully
+\end{lstlisting}
+
+Both verifications succeed, confirming that the signatures were produced with the
+correct private key and that the signed message has not been altered.
+The verification step uses only the \emph{public key}, which means any party in
+possession of \texttt{/alice\_rsa-2048-pub.pem} can independently confirm the
+authenticity and integrity of the signed messages without access to the private key.
+}
 
 
 
